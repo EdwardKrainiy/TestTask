@@ -4,7 +4,7 @@ import com.example.testtask.dto.UserCreateRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureWebMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -23,7 +23,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
-@AutoConfigureWebMvc
+@AutoConfigureMockMvc
 @Testcontainers
 @Transactional
 class UserControllerIntegrationTest {
@@ -57,11 +57,11 @@ class UserControllerIntegrationTest {
         request.setInitialBalance(BigDecimal.valueOf(1000));
 
         UserCreateRequest.EmailRequest emailRequest = new UserCreateRequest.EmailRequest();
-        emailRequest.setEmail("john@example.com");
+        emailRequest.setEmail("unique@example.com");
         request.setEmails(List.of(emailRequest));
 
         UserCreateRequest.PhoneRequest phoneRequest = new UserCreateRequest.PhoneRequest();
-        phoneRequest.setPhone("79201234567");
+        phoneRequest.setPhone("79991112233");
         request.setPhones(List.of(phoneRequest));
 
         // When & Then
@@ -71,7 +71,7 @@ class UserControllerIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("John Doe"))
                 .andExpect(jsonPath("$.balance").value(1000))
-                .andExpect(jsonPath("$.emails[0]").value("john@example.com"))
-                .andExpect(jsonPath("$.phones[0]").value("79201234567"));
+                .andExpect(jsonPath("$.emails[0]").value("unique@example.com"))
+                .andExpect(jsonPath("$.phones[0]").value("79991112233"));
     }
 } 
