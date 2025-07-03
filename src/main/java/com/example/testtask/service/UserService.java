@@ -1,0 +1,251 @@
+package com.example.testtask.service;
+
+import com.example.testtask.dto.*;
+import com.example.testtask.entity.*;
+import com.example.testtask.repository.*;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class UserService {
+    
+    private final UserRepository userRepository;
+    private final AccountRepository accountRepository;
+    private final EmailDataRepository emailDataRepository;
+    private final PhoneDataRepository phoneDataRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    
+    @Transactional
+    public UserResponse createUser(UserCreateRequest request) {
+        log.debug("Creating user with name: {}", request.getName());
+        
+        // Validate unique emails and phones
+        for (UserCreateRequest.EmailRequest emailReq : request.getEmails()) {
+            if (emailDataRepository.existsByEmail(emailReq.getEmail())) {
+                throw new IllegalArgumentException("Email already exists: " + emailReq.getEmail());
+            }
+        }
+        
+        for (UserCreateRequest.PhoneRequest phoneReq : request.getPhones()) {
+            if (phoneDataRepository.existsByPhone(phoneReq.getPhone())) {
+                throw new IllegalArgumentException("Phone already exists: " + phoneReq.getPhone());
+            }
+        }
+        
+        // Create user
+        User user = new User();
+        user.setName(request.getName());
+        user.setDateOfBirth(request.getDateOfBirth());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        
+        user = userRepository.save(user);
+        
+        // Create account
+        Account account = new Account();
+        account.setUserId(user.getId());
+        account.setBalance(request.getInitialBalance());
+        account.setInitialBalance(request.getInitialBalance());
+        accountRepository.save(account);
+        
+        // Create emails
+        List<EmailData> emails = new ArrayList<>();
+        for (UserCreateRequest.EmailRequest emailReq : request.getEmails()) {
+            EmailData emailData = new EmailData();
+            emailData.setUserId(user.getId());
+            emailData.setEmail(emailReq.getEmail());
+            emails.add(emailData);
+        }
+        emailDataRepository.saveAll(emails);
+        
+        // Create phones
+        List<PhoneData> phones = new ArrayList<>();
+        for (UserCreateRequest.PhoneRequest phoneReq : request.getPhones()) {
+            PhoneData phoneData = new PhoneData();
+            phoneData.setUserId(user.getId());
+            phoneData.setPhone(phoneReq.getPhone());
+            phones.add(phoneData);
+        }
+        phoneDataRepository.saveAll(phones);
+        
+        log.info("User created successfully with ID: {}", user.getId());
+        return mapToUserResponse(user, account, emails, phones);
+    }
+    
+    @Cacheable(value = "users", key = "#userId")
+    public Optional<UserResponse> getUserById(Long userId) {
+        log.debug("Getting user by ID: {}", userId);
+        
+        Optional<User> user = userRepository.findById(userId);
+        if (user.isEmpty()) {
+            return Optional.empty();
+        }
+        
+        Optional<Account> account = accountRepository.findByUserId(userId);
+        List<EmailData> emails = emailDataRepository.findByUserId(userId);
+        List<PhoneData> phones = phoneDataRepository.findByUserId(userId);
+        
+        return Optional.of(mapToUserResponse(user.get(), account.orElse(null), emails, phones));
+    }
+    
+    @Transactional
+    @CacheEvict(value = {"users", "usersByEmail", "usersByPhone"}, key = "#userId")
+    public Optional<UserResponse> updateUser(Long userId, UserUpdateRequest request) {
+        log.debug("Updating user with ID: {}", userId);
+        
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        
+        User user = userOpt.get();
+        
+        // Update name if provided
+        if (request.getName() != null && !request.getName().trim().isEmpty()) {
+            user.setName(request.getName());
+        }
+        
+        // Update emails if provided
+        if (request.getEmails() != null && !request.getEmails().isEmpty()) {
+            // Validate unique emails
+            for (UserUpdateRequest.EmailUpdateRequest emailReq : request.getEmails()) {
+                if (emailReq.getEmail() != null && 
+                    !emailDataRepository.findByEmail(emailReq.getEmail()).map(e -> e.getUserId().equals(userId)).orElse(true)) {
+                    throw new IllegalArgumentException("Email already exists: " + emailReq.getEmail());
+                }
+            }
+            
+            // Delete old emails and create new ones
+            emailDataRepository.deleteByUserId(userId);
+            List<EmailData> newEmails = new ArrayList<>();
+            for (UserUpdateRequest.EmailUpdateRequest emailReq : request.getEmails()) {
+                if (emailReq.getEmail() != null && !emailReq.getEmail().trim().isEmpty()) {
+                    EmailData emailData = new EmailData();
+                    emailData.setUserId(userId);
+                    emailData.setEmail(emailReq.getEmail());
+                    newEmails.add(emailData);
+                }
+            }
+            emailDataRepository.saveAll(newEmails);
+        }
+        
+        // Update phones if provided
+        if (request.getPhones() != null && !request.getPhones().isEmpty()) {
+            // Validate unique phones
+            for (UserUpdateRequest.PhoneUpdateRequest phoneReq : request.getPhones()) {
+                if (phoneReq.getPhone() != null && 
+                    !phoneDataRepository.findByPhone(phoneReq.getPhone()).map(p -> p.getUserId().equals(userId)).orElse(true)) {
+                    throw new IllegalArgumentException("Phone already exists: " + phoneReq.getPhone());
+                }
+            }
+            
+            // Delete old phones and create new ones
+            phoneDataRepository.deleteByUserId(userId);
+            List<PhoneData> newPhones = new ArrayList<>();
+            for (UserUpdateRequest.PhoneUpdateRequest phoneReq : request.getPhones()) {
+                if (phoneReq.getPhone() != null && !phoneReq.getPhone().trim().isEmpty()) {
+                    PhoneData phoneData = new PhoneData();
+                    phoneData.setUserId(userId);
+                    phoneData.setPhone(phoneReq.getPhone());
+                    newPhones.add(phoneData);
+                }
+            }
+            phoneDataRepository.saveAll(newPhones);
+        }
+        
+        user = userRepository.save(user);
+        
+        Optional<Account> account = accountRepository.findByUserId(userId);
+        List<EmailData> emails = emailDataRepository.findByUserId(userId);
+        List<PhoneData> phones = phoneDataRepository.findByUserId(userId);
+        
+        log.info("User updated successfully with ID: {}", userId);
+        return Optional.of(mapToUserResponse(user, account.orElse(null), emails, phones));
+    }
+    
+    public Page<UserResponse> searchUsers(LocalDate dateOfBirth, String phone, String name, String email, Pageable pageable) {
+        log.debug("Searching users with filters - dateOfBirth: {}, phone: {}, name: {}, email: {}", 
+                 dateOfBirth, phone, name, email);
+        
+        Page<User> users;
+        
+        if (dateOfBirth != null) {
+            users = userRepository.findByDateOfBirthAfter(dateOfBirth, pageable);
+        } else if (phone != null && !phone.trim().isEmpty()) {
+            users = userRepository.findByPhoneContaining(phone, pageable);
+        } else if (name != null && !name.trim().isEmpty()) {
+            users = userRepository.findByNameContainingIgnoreCase(name, pageable);
+        } else if (email != null && !email.trim().isEmpty()) {
+            users = userRepository.findByEmailContaining(email, pageable);
+        } else {
+            users = userRepository.findAll(pageable);
+        }
+        
+        List<UserResponse> userResponses = users.getContent().stream()
+                .map(user -> {
+                    Optional<Account> account = accountRepository.findByUserId(user.getId());
+                    List<EmailData> emails = emailDataRepository.findByUserId(user.getId());
+                    List<PhoneData> phones = phoneDataRepository.findByUserId(user.getId());
+                    return mapToUserResponse(user, account.orElse(null), emails, phones);
+                })
+                .collect(Collectors.toList());
+        
+        return new PageImpl<>(userResponses, pageable, users.getTotalElements());
+    }
+    
+    @Cacheable(value = "usersByEmail", key = "#email")
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
+    
+    @Cacheable(value = "usersByPhone", key = "#phone")
+    public Optional<User> findByPhone(String phone) {
+        return userRepository.findByPhone(phone);
+    }
+    
+    public AuthResponse authenticate(AuthRequest request) {
+        log.debug("Authenticating user with login: {}", request.getLogin());
+        
+        Optional<User> userOpt = findByEmail(request.getLogin());
+        if (userOpt.isEmpty()) {
+            userOpt = findByPhone(request.getLogin());
+        }
+        
+        if (userOpt.isEmpty() || !passwordEncoder.matches(request.getPassword(), userOpt.get().getPassword())) {
+            throw new IllegalArgumentException("Invalid credentials");
+        }
+        
+        String token = jwtService.generateToken(userOpt.get().getId());
+        log.info("User authenticated successfully: {}", userOpt.get().getId());
+        
+        return new AuthResponse(token);
+    }
+    
+    private UserResponse mapToUserResponse(User user, Account account, List<EmailData> emails, List<PhoneData> phones) {
+        UserResponse response = new UserResponse();
+        response.setId(user.getId());
+        response.setName(user.getName());
+        response.setDateOfBirth(user.getDateOfBirth());
+        response.setBalance(account != null ? account.getBalance() : BigDecimal.ZERO);
+        response.setEmails(emails.stream().map(EmailData::getEmail).collect(Collectors.toList()));
+        response.setPhones(phones.stream().map(PhoneData::getPhone).collect(Collectors.toList()));
+        return response;
+    }
+} 
