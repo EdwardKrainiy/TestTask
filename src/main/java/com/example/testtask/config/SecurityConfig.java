@@ -76,7 +76,7 @@ public class SecurityConfig {
                 try {
                     userId = jwtService.extractUserId(token);
                 } catch (Exception e) {
-                    // Invalid token, continue without authentication
+                    logger.error("Exception while extracting userId from token", e);
                 }
             }
             

@@ -32,6 +32,7 @@ public class UserService {
     private final PhoneDataRepository phoneDataRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final UserLookupService userLookupService;
     
     @Transactional
     public UserResponse createUser(UserCreateRequest request) {
@@ -213,22 +214,12 @@ public class UserService {
         return new PageImpl<>(userResponses, pageable, users.getTotalElements());
     }
     
-    @Cacheable(value = "usersByEmail", key = "#email")
-    public Optional<User> findByEmail(String email) {
-        return userRepository.findByEmail(email);
-    }
-    
-    @Cacheable(value = "usersByPhone", key = "#phone")
-    public Optional<User> findByPhone(String phone) {
-        return userRepository.findByPhone(phone);
-    }
-    
     public AuthResponse authenticate(AuthRequest request) {
         log.debug("Authenticating user with login: {}", request.getLogin());
         
-        Optional<User> userOpt = findByEmail(request.getLogin());
+        Optional<User> userOpt = userLookupService.findByEmail(request.getLogin());
         if (userOpt.isEmpty()) {
-            userOpt = findByPhone(request.getLogin());
+            userOpt = userLookupService.findByPhone(request.getLogin());
         }
         
         if (userOpt.isEmpty() || !passwordEncoder.matches(request.getPassword(), userOpt.get().getPassword())) {

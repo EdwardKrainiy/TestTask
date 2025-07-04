@@ -10,5 +10,6 @@
     <include file="db/changelog/003-create-email-data-table.xml"/>
     <include file="db/changelog/004-create-phone-data-table.xml"/>
     <include file="db/changelog/005-insert-initial-users.xml"/>
+    <include file="db/changelog/006-add-version-column.xml"/>
 
 </databaseChangeLog> 
