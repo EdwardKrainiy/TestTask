@@ -7,10 +7,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Isolation;
+import org.springframework.retry.annotation.Retryable;
+import jakarta.persistence.OptimisticLockException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -29,6 +32,7 @@ public class AccountService {
         return accountRepository.findByUserId(userId);
     }
     
+    @Retryable(retryFor = {ObjectOptimisticLockingFailureException.class, OptimisticLockException.class})
     @Transactional(isolation = Isolation.SERIALIZABLE)
     @CacheEvict(value = "accounts", allEntries = true)
     public void transferMoney(Long fromUserId, TransferRequest request) {
@@ -79,7 +83,8 @@ public class AccountService {
                 request.getAmount(), fromUserId, request.getTransferTo());
     }
     
-    @Scheduled(fixedRate = 30000) // Every 30 seconds
+    @Scheduled(fixedRate = 1000) // Every 30 seconds
+    @Retryable(retryFor = {ObjectOptimisticLockingFailureException.class, OptimisticLockException.class})
     @Transactional
     @CacheEvict(value = "accounts", allEntries = true)
     public void increaseBalances() {

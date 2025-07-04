@@ -10,15 +10,13 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
-import java.io.Serializable;
-
 @Entity
 @Table(name = "phone_data", uniqueConstraints = @UniqueConstraint(columnNames = "phone"))
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(of = "id")
-public class PhoneData implements Serializable {
+public class PhoneData {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

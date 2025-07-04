@@ -9,7 +9,6 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
-import java.io.Serializable;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -19,7 +18,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(of = "id")
-public class User implements Serializable {
+public class User {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -2,6 +2,7 @@ package com.example.testtask.integration;
 
 import com.example.testtask.dto.TransferRequest;
 import com.example.testtask.dto.UserCreateRequest;
+import com.example.testtask.dto.UserResponse;
 import com.example.testtask.service.AccountService;
 import com.example.testtask.service.UserService;
 import org.junit.jupiter.api.Assertions;
@@ -65,7 +66,7 @@ class ConcurrentTransferTest {
         Assertions.assertEquals(0, expectedUser2.compareTo(actual2), "User2 balance mismatch");
     }
 
-    private com.example.testtask.dto.UserResponse createUser(String name, String email, String phone) {
+    private UserResponse createUser(String name, String email, String phone) {
         UserCreateRequest req = new UserCreateRequest();
         req.setName(name);
         req.setDateOfBirth(LocalDate.of(1990, 1, 1));
