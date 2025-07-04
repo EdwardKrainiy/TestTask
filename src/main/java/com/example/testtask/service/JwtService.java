@@ -24,8 +24,8 @@ public class JwtService {
     public String generateToken(Long userId) {
         return Jwts.builder()
                 .claim("userId", userId)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }

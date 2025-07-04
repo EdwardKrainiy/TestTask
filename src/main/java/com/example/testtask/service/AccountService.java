@@ -5,11 +5,9 @@ import com.example.testtask.entity.Account;
 import com.example.testtask.repository.AccountRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.retry.annotation.Retryable;
@@ -31,11 +29,7 @@ public class AccountService {
     public Optional<Account> getAccountByUserId(Long userId) {
         return accountRepository.findByUserId(userId);
     }
-    
-    /**
-     * Transfers money between accounts with proper thread safety.
-     * Uses pessimistic locking with ordered locking to prevent deadlocks.
-     */
+
     @Retryable(retryFor = {ObjectOptimisticLockingFailureException.class, OptimisticLockException.class})
     @Transactional
     @CacheEvict(value = "accounts", allEntries = true)
@@ -86,11 +80,7 @@ public class AccountService {
         log.info("Transfer completed successfully: {} from user {} to user {}", 
                 request.getAmount(), fromUserId, request.getTransferTo());
     }
-    
-    /**
-     * Increases account balances by 10% up to 207% of initial balance.
-     * Used by scheduled task.
-     */
+
     @Retryable(retryFor = {ObjectOptimisticLockingFailureException.class, OptimisticLockException.class})
     @Transactional
     @CacheEvict(value = "accounts", allEntries = true)

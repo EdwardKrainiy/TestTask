@@ -15,11 +15,6 @@ public class ScheduledTasksConfig {
 
     private final AccountService accountService;
 
-    /**
-     * Scheduled task to increase account balances.
-     * Runs every 30 seconds.
-     * Can be disabled by setting app.scheduled-tasks.enabled=false
-     */
     @Scheduled(fixedRate = 30000)
     public void increaseBalances() {
         accountService.increaseBalances();

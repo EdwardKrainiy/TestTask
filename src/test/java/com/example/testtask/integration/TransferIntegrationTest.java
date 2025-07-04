@@ -99,6 +99,7 @@ class TransferIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void transferMoney_InvalidAmount_ShouldFail() throws Exception {
+        createUser("User1", "user1@invalid.com", "79200000131");
         UserResponse user2 = createUser("User2", "user2@invalid.com", "79200000132");
         
         String token = authenticateUser("user1@invalid.com", "password123");

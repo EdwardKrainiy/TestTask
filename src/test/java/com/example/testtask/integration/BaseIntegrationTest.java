@@ -12,10 +12,6 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
-/**
- * Base class for integration tests with Testcontainers.
- * Provides PostgreSQL and Redis containers for testing.
- */
 @SpringBootTest
 @Testcontainers
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)

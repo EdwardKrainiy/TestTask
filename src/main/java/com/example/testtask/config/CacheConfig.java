@@ -18,10 +18,6 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import java.time.Duration;
 
-/**
- * Redis cache configuration.
- * Disabled when spring.cache.type=none.
- */
 @Configuration
 @EnableCaching
 @ConditionalOnProperty(name = "spring.cache.type", havingValue = "redis", matchIfMissing = true)
