@@ -1,5 +1,6 @@
 package com.example.testtask.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
@@ -33,6 +34,7 @@ public class Account {
     
     @OneToOne
     @JoinColumn(name = "user_id", referencedColumnName = "id", insertable = false, updatable = false)
+    @JsonIgnore
     private User user;
     
     @Column(name = "initial_balance", nullable = false, precision = 19, scale = 2)
