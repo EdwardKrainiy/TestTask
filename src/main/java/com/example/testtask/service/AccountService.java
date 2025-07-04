@@ -10,6 +10,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -28,7 +29,7 @@ public class AccountService {
         return accountRepository.findByUserId(userId);
     }
     
-    @Transactional
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     @CacheEvict(value = "accounts", allEntries = true)
     public void transferMoney(Long fromUserId, TransferRequest request) {
         log.debug("Transferring {} from user {} to user {}", 

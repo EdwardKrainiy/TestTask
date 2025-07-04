@@ -117,7 +117,6 @@ public class UserService {
         
         User user = userOpt.get();
         
-        // Update name if provided
         if (request.getName() != null && !request.getName().trim().isEmpty()) {
             user.setName(request.getName());
         }
@@ -189,11 +188,15 @@ public class UserService {
         if (dateOfBirth != null) {
             users = userRepository.findByDateOfBirthAfter(dateOfBirth, pageable);
         } else if (phone != null && !phone.trim().isEmpty()) {
-            users = userRepository.findByPhoneContaining(phone, pageable);
+            Optional<User> userOpt = userRepository.findByPhone(phone.trim());
+            List<User> content = userOpt.map(List::of).orElse(List.of());
+            users = new PageImpl<>(content, pageable, content.size());
         } else if (name != null && !name.trim().isEmpty()) {
-            users = userRepository.findByNameContainingIgnoreCase(name, pageable);
+            users = userRepository.findByNameContainingIgnoreCase(name.trim(), pageable);
         } else if (email != null && !email.trim().isEmpty()) {
-            users = userRepository.findByEmailContaining(email, pageable);
+            Optional<User> userOpt = userRepository.findByEmail(email.trim());
+            List<User> content = userOpt.map(List::of).orElse(List.of());
+            users = new PageImpl<>(content, pageable, content.size());
         } else {
             users = userRepository.findAll(pageable);
         }

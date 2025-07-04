@@ -37,4 +37,7 @@ public class Account {
     
     @Column(name = "initial_balance", nullable = false, precision = 19, scale = 2)
     private BigDecimal initialBalance;
+
+    @Version
+    private Long version;
 } 
