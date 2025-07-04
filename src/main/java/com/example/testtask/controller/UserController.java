@@ -67,7 +67,6 @@ public class UserController {
             @Valid @RequestBody UserUpdateRequest request,
             Authentication authentication) {
         try {
-            // Check if user is updating their own data
             Long currentUserId = Long.valueOf(authentication.getName());
             if (!currentUserId.equals(userId)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();

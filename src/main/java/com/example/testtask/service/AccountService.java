@@ -5,13 +5,13 @@ import com.example.testtask.entity.Account;
 import com.example.testtask.repository.AccountRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.annotation.Isolation;
 import org.springframework.retry.annotation.Retryable;
 import jakarta.persistence.OptimisticLockException;
 
@@ -32,8 +32,12 @@ public class AccountService {
         return accountRepository.findByUserId(userId);
     }
     
+    /**
+     * Transfers money between accounts with proper thread safety.
+     * Uses pessimistic locking with ordered locking to prevent deadlocks.
+     */
     @Retryable(retryFor = {ObjectOptimisticLockingFailureException.class, OptimisticLockException.class})
-    @Transactional(isolation = Isolation.SERIALIZABLE)
+    @Transactional
     @CacheEvict(value = "accounts", allEntries = true)
     public void transferMoney(Long fromUserId, TransferRequest request) {
         log.debug("Transferring {} from user {} to user {}", 
@@ -43,36 +47,36 @@ public class AccountService {
             throw new IllegalArgumentException("Cannot transfer money to yourself");
         }
         
-        // Get accounts with locking to prevent race conditions
-        Optional<Account> fromAccountOpt = accountRepository.findByUserIdWithLock(fromUserId);
-        Optional<Account> toAccountOpt = accountRepository.findByUserIdWithLock(request.getTransferTo());
-        
-        if (fromAccountOpt.isEmpty()) {
-            throw new IllegalArgumentException("Source account not found");
+        if (request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Transfer amount must be positive");
         }
         
-        if (toAccountOpt.isEmpty()) {
-            throw new IllegalArgumentException("Destination account not found");
+        Long firstUserId = fromUserId.compareTo(request.getTransferTo()) < 0 ?
+                fromUserId : request.getTransferTo();
+        Long secondUserId = fromUserId.compareTo(request.getTransferTo()) < 0 ? 
+                request.getTransferTo() : fromUserId;
+        
+        Optional<Account> firstAccountOpt = accountRepository.findByUserIdWithLock(firstUserId);
+        Optional<Account> secondAccountOpt = accountRepository.findByUserIdWithLock(secondUserId);
+        
+        if (firstAccountOpt.isEmpty() || secondAccountOpt.isEmpty()) {
+            throw new IllegalArgumentException("One or both accounts not found");
         }
         
-        Account fromAccount = fromAccountOpt.get();
-        Account toAccount = toAccountOpt.get();
+        Account fromAccount = firstUserId.equals(fromUserId) ? firstAccountOpt.get() : secondAccountOpt.get();
+        Account toAccount = firstUserId.equals(fromUserId) ? secondAccountOpt.get() : firstAccountOpt.get();
         
-        // Check if sender has enough balance
         if (fromAccount.getBalance().compareTo(request.getAmount()) < 0) {
             throw new IllegalArgumentException("Insufficient balance");
         }
         
-        // Perform transfer
         BigDecimal newFromBalance = fromAccount.getBalance().subtract(request.getAmount());
         BigDecimal newToBalance = toAccount.getBalance().add(request.getAmount());
         
-        // Ensure balance doesn't go negative
         if (newFromBalance.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Transfer would result in negative balance");
         }
         
-        // Update balances
         fromAccount.setBalance(newFromBalance);
         toAccount.setBalance(newToBalance);
         
@@ -83,7 +87,10 @@ public class AccountService {
                 request.getAmount(), fromUserId, request.getTransferTo());
     }
     
-    @Scheduled(fixedRate = 1000) // Every 30 seconds
+    /**
+     * Increases account balances by 10% up to 207% of initial balance.
+     * Used by scheduled task.
+     */
     @Retryable(retryFor = {ObjectOptimisticLockingFailureException.class, OptimisticLockException.class})
     @Transactional
     @CacheEvict(value = "accounts", allEntries = true)
@@ -91,32 +98,37 @@ public class AccountService {
         log.debug("Starting scheduled balance increase");
         
         List<Account> accounts = accountRepository.findAll();
+        int updatedCount = 0;
         
         for (Account account : accounts) {
-            BigDecimal currentBalance = account.getBalance();
-            BigDecimal initialBalance = account.getInitialBalance();
-            BigDecimal maxBalance = initialBalance.multiply(BigDecimal.valueOf(2.07)); // 207% of initial
-            
-            // Calculate 10% increase
-            BigDecimal increase = currentBalance.multiply(BigDecimal.valueOf(0.10))
-                    .setScale(2, RoundingMode.HALF_UP);
-            BigDecimal newBalance = currentBalance.add(increase);
-            
-            // Don't exceed 207% of initial balance
-            if (newBalance.compareTo(maxBalance) > 0) {
-                newBalance = maxBalance;
-            }
-            
-            // Only update if there's an actual change
-            if (newBalance.compareTo(currentBalance) > 0) {
-                account.setBalance(newBalance);
-                accountRepository.save(account);
+            try {
+                BigDecimal currentBalance = account.getBalance();
+                BigDecimal initialBalance = account.getInitialBalance();
+                BigDecimal maxBalance = initialBalance.multiply(BigDecimal.valueOf(2.07));
                 
-                log.debug("Increased balance for user {}: {} -> {}", 
-                         account.getUserId(), currentBalance, newBalance);
+                BigDecimal increase = currentBalance.multiply(BigDecimal.valueOf(0.10))
+                        .setScale(2, RoundingMode.HALF_UP);
+                BigDecimal newBalance = currentBalance.add(increase);
+                
+                if (newBalance.compareTo(maxBalance) > 0) {
+                    newBalance = maxBalance;
+                }
+                
+                if (newBalance.compareTo(currentBalance) > 0) {
+                    account.setBalance(newBalance);
+                    accountRepository.save(account);
+                    updatedCount++;
+                    
+                    log.debug("Increased balance for user {}: {} -> {}", 
+                             account.getUserId(), currentBalance, newBalance);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to update balance for account {}: {}", 
+                        account.getId(), e.getMessage());
             }
         }
         
-        log.info("Completed scheduled balance increase for {} accounts", accounts.size());
+        log.info("Completed scheduled balance increase. Updated {} out of {} accounts", 
+                updatedCount, accounts.size());
     }
 } 

@@ -39,12 +39,9 @@ public class SecurityConfig {
         http.csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Public endpoints
                 .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-                // Swagger endpoints
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html", "/api-docs/**").permitAll()
-                // All other endpoints require authentication
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

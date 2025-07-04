@@ -60,7 +60,6 @@ class UserServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Setup test data
         createRequest = new UserCreateRequest();
         createRequest.setName("John Doe");
         createRequest.setDateOfBirth(LocalDate.of(1990, 1, 1));

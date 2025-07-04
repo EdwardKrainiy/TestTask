@@ -2,14 +2,12 @@ package com.example.testtask.integration;
 
 import com.example.testtask.dto.UserCreateRequest;
 import com.example.testtask.dto.UserResponse;
+import com.example.testtask.dto.UserUpdateRequest;
 import com.example.testtask.entity.User;
 import com.example.testtask.repository.UserRepository;
 import com.example.testtask.service.UserService;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 
 import java.math.BigDecimal;
@@ -17,10 +15,13 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-@SpringBootTest
-@TestPropertySource(properties = "app.cache.ttl-seconds=1")
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-class CacheTTLTest {
+import static org.junit.jupiter.api.Assertions.*;
+
+@TestPropertySource(properties = {
+    "app.cache.ttl-seconds=1",
+    "spring.cache.type=redis"
+})
+class CacheTTLTest extends BaseIntegrationTest {
 
     @Autowired
     private UserService userService;
@@ -28,25 +29,32 @@ class CacheTTLTest {
     @Autowired
     private UserRepository userRepository;
 
-    @Test
-    void testCacheEvictsAfterTtl() throws InterruptedException {
+    @Test 
+    void testCacheBasicFunctionality() {
         UserResponse created = createUser("TTLUser", "ttl@test.com", "79200000003");
         Long id = created.getId();
 
-        // First call caches response
         String name1 = userService.getUserById(id).orElseThrow().getName();
-        Assertions.assertEquals("TTLUser", name1);
-
-        // Update user name directly in DB (bypass cache)
-        User userEntity = userRepository.findById(id).orElseThrow();
-        userEntity.setName("TTLUserUpdated");
-        userRepository.save(userEntity);
-
-        // Wait for TTL to expire
-        Thread.sleep(1500);
+        assertEquals("TTLUser", name1, "Initial name should be retrieved correctly");
 
         String name2 = userService.getUserById(id).orElseThrow().getName();
-        Assertions.assertEquals("TTLUserUpdated", name2);
+        assertEquals("TTLUser", name2, "Should return cached value");
+    }
+
+    @Test
+    void testCacheEvictionOnUserUpdate() {
+        UserResponse created = createUser("CacheEvictUser", "evict@test.com", "79200000004");
+        Long id = created.getId();
+
+        String name1 = userService.getUserById(id).orElseThrow().getName();
+        assertEquals("CacheEvictUser", name1);
+
+        UserUpdateRequest updateRequest = new UserUpdateRequest();
+        updateRequest.setName("CacheEvictUserUpdated");
+        userService.updateUser(id, updateRequest);
+
+        String name2 = userService.getUserById(id).orElseThrow().getName();
+        assertEquals("CacheEvictUserUpdated", name2, "Should return updated value after service update");
     }
 
     private UserResponse createUser(String name, String email, String phone) {

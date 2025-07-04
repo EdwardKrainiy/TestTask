@@ -38,7 +38,6 @@ public class UserService {
     public UserResponse createUser(UserCreateRequest request) {
         log.debug("Creating user with name: {}", request.getName());
         
-        // Validate unique emails and phones
         for (UserCreateRequest.EmailRequest emailReq : request.getEmails()) {
             if (emailDataRepository.existsByEmail(emailReq.getEmail())) {
                 throw new IllegalArgumentException("Email already exists: " + emailReq.getEmail());
@@ -51,7 +50,6 @@ public class UserService {
             }
         }
         
-        // Create user
         User user = new User();
         user.setName(request.getName());
         user.setDateOfBirth(request.getDateOfBirth());
@@ -59,14 +57,12 @@ public class UserService {
         
         user = userRepository.save(user);
         
-        // Create account
         Account account = new Account();
         account.setUserId(user.getId());
         account.setBalance(request.getInitialBalance());
         account.setInitialBalance(request.getInitialBalance());
         accountRepository.save(account);
         
-        // Create emails
         List<EmailData> emails = new ArrayList<>();
         for (UserCreateRequest.EmailRequest emailReq : request.getEmails()) {
             EmailData emailData = new EmailData();
@@ -76,7 +72,6 @@ public class UserService {
         }
         emailDataRepository.saveAll(emails);
         
-        // Create phones
         List<PhoneData> phones = new ArrayList<>();
         for (UserCreateRequest.PhoneRequest phoneReq : request.getPhones()) {
             PhoneData phoneData = new PhoneData();
@@ -122,9 +117,7 @@ public class UserService {
             user.setName(request.getName());
         }
         
-        // Update emails if provided
         if (request.getEmails() != null && !request.getEmails().isEmpty()) {
-            // Validate unique emails
             for (UserUpdateRequest.EmailUpdateRequest emailReq : request.getEmails()) {
                 if (emailReq.getEmail() != null && 
                     !emailDataRepository.findByEmail(emailReq.getEmail()).map(e -> e.getUserId().equals(userId)).orElse(true)) {
@@ -132,7 +125,6 @@ public class UserService {
                 }
             }
             
-            // Delete old emails and create new ones
             emailDataRepository.deleteByUserId(userId);
             List<EmailData> newEmails = new ArrayList<>();
             for (UserUpdateRequest.EmailUpdateRequest emailReq : request.getEmails()) {
@@ -146,9 +138,7 @@ public class UserService {
             emailDataRepository.saveAll(newEmails);
         }
         
-        // Update phones if provided
         if (request.getPhones() != null && !request.getPhones().isEmpty()) {
-            // Validate unique phones
             for (UserUpdateRequest.PhoneUpdateRequest phoneReq : request.getPhones()) {
                 if (phoneReq.getPhone() != null && 
                     !phoneDataRepository.findByPhone(phoneReq.getPhone()).map(p -> p.getUserId().equals(userId)).orElse(true)) {
@@ -156,7 +146,6 @@ public class UserService {
                 }
             }
             
-            // Delete old phones and create new ones
             phoneDataRepository.deleteByUserId(userId);
             List<PhoneData> newPhones = new ArrayList<>();
             for (UserUpdateRequest.PhoneUpdateRequest phoneReq : request.getPhones()) {

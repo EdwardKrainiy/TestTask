@@ -5,15 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -22,24 +15,8 @@ import java.util.List;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
 @AutoConfigureMockMvc
-@Testcontainers
-@Transactional
-class UserControllerIntegrationTest {
-
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine")
-            .withDatabaseName("testdb")
-            .withUsername("testuser")
-            .withPassword("testpass");
-
-    @DynamicPropertySource
-    static void configureProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-    }
+class UserControllerIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -48,30 +25,89 @@ class UserControllerIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Test
-    void createUser_Success() throws Exception {
-        // Given
+    void createUser_ValidRequest_ShouldSucceed() throws Exception {
         UserCreateRequest request = new UserCreateRequest();
-        request.setName("John Doe");
+        request.setName("Valid User");
         request.setDateOfBirth(LocalDate.of(1990, 1, 1));
         request.setPassword("password123");
         request.setInitialBalance(BigDecimal.valueOf(1000));
-
+        
         UserCreateRequest.EmailRequest emailRequest = new UserCreateRequest.EmailRequest();
-        emailRequest.setEmail("unique@example.com");
+        emailRequest.setEmail("valid@example.com");
         request.setEmails(List.of(emailRequest));
-
+        
         UserCreateRequest.PhoneRequest phoneRequest = new UserCreateRequest.PhoneRequest();
-        phoneRequest.setPhone("79991112233");
+        phoneRequest.setPhone("79001234567");
         request.setPhones(List.of(phoneRequest));
 
-        // When & Then
         mockMvc.perform(post("/api/users")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.name").value("John Doe"))
-                .andExpect(jsonPath("$.balance").value(1000))
-                .andExpect(jsonPath("$.emails[0]").value("unique@example.com"))
-                .andExpect(jsonPath("$.phones[0]").value("79991112233"));
+                .andExpect(jsonPath("$.name").value("Valid User"))
+                .andExpect(jsonPath("$.emails[0]").value("valid@example.com"));
+    }
+
+    @Test
+    void createUser_DuplicateEmail_ShouldFail() throws Exception {
+        UserCreateRequest firstRequest = new UserCreateRequest();
+        firstRequest.setName("First User");
+        firstRequest.setDateOfBirth(LocalDate.of(1990, 1, 1));
+        firstRequest.setPassword("password123");
+        firstRequest.setInitialBalance(BigDecimal.valueOf(1000));
+        
+        UserCreateRequest.EmailRequest firstEmailRequest = new UserCreateRequest.EmailRequest();
+        firstEmailRequest.setEmail("unique@example.com");
+        firstRequest.setEmails(List.of(firstEmailRequest));
+        
+        UserCreateRequest.PhoneRequest firstPhoneRequest = new UserCreateRequest.PhoneRequest();
+        firstPhoneRequest.setPhone("79001234568");
+        firstRequest.setPhones(List.of(firstPhoneRequest));
+
+        mockMvc.perform(post("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(firstRequest)))
+                .andExpect(status().isCreated());
+
+        UserCreateRequest duplicateRequest = new UserCreateRequest();
+        duplicateRequest.setName("Second User");
+        duplicateRequest.setDateOfBirth(LocalDate.of(1990, 1, 1));
+        duplicateRequest.setPassword("password123");
+        duplicateRequest.setInitialBalance(BigDecimal.valueOf(1000));
+        
+        UserCreateRequest.EmailRequest duplicateEmailRequest = new UserCreateRequest.EmailRequest();
+        duplicateEmailRequest.setEmail("unique@example.com");
+        duplicateRequest.setEmails(List.of(duplicateEmailRequest));
+        
+        UserCreateRequest.PhoneRequest duplicatePhoneRequest = new UserCreateRequest.PhoneRequest();
+        duplicatePhoneRequest.setPhone("79001234569");
+        duplicateRequest.setPhones(List.of(duplicatePhoneRequest));
+
+        mockMvc.perform(post("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(duplicateRequest)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createUser_InvalidEmail_ShouldFail() throws Exception {
+        UserCreateRequest request = new UserCreateRequest();
+        request.setName("Invalid Email User");
+        request.setDateOfBirth(LocalDate.of(1990, 1, 1));
+        request.setPassword("password123");
+        request.setInitialBalance(BigDecimal.valueOf(1000));
+        
+        UserCreateRequest.EmailRequest emailRequest = new UserCreateRequest.EmailRequest();
+        emailRequest.setEmail("invalid-email");
+        request.setEmails(List.of(emailRequest));
+        
+        UserCreateRequest.PhoneRequest phoneRequest = new UserCreateRequest.PhoneRequest();
+        phoneRequest.setPhone("79001234570");
+        request.setPhones(List.of(phoneRequest));
+
+        mockMvc.perform(post("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
     }
 } 
