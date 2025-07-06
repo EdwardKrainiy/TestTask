@@ -1,24 +1,26 @@
 package com.example.testtask.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.validation.FieldError;
 
+import java.lang.reflect.Method;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
-
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
 @Slf4j
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler implements AsyncUncaughtExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationErrors(MethodArgumentNotValidException ex) {
@@ -29,7 +31,7 @@ public class GlobalExceptionHandler {
         Map<String, String> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
                 .collect(Collectors.toMap(FieldError::getField, FieldError::getDefaultMessage));
         body.put("fieldErrors", fieldErrors);
-        body.put("message", "Validation failed");
+        body.put("message", "Validation failed for request parameters.");
         body.put("exception", ex.getClass().getSimpleName());
 
         log.error("Validation error: {}", fieldErrors);
@@ -45,7 +47,7 @@ public class GlobalExceptionHandler {
         body.put("message", ex.getMessage());
         body.put("exception", ex.getClass().getSimpleName());
 
-        log.error("Illegal argument: {}", ex.getMessage(), ex);
+        log.warn("Illegal argument: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
@@ -68,10 +70,18 @@ public class GlobalExceptionHandler {
         body.put("timestamp", LocalDateTime.now());
         body.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
         body.put("error", "Internal Server Error");
-        body.put("message", "An unexpected error occurred");
+        body.put("message", "An unexpected error occurred. Please try again later.");
         body.put("exception", ex.getClass().getSimpleName());
 
         log.error("Unexpected error", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+    }
+
+    @Override
+    public void handleUncaughtException(@NonNull Throwable ex, Method method, @NonNull Object... params) {
+        log.error("Exception in async method '{}' with parameters {}",
+                method.getName(),
+                Arrays.toString(params),
+                ex);
     }
 }

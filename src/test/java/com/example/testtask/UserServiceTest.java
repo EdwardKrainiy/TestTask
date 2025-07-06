@@ -11,7 +11,6 @@ import com.example.testtask.repository.AccountRepository;
 import com.example.testtask.repository.EmailDataRepository;
 import com.example.testtask.repository.PhoneDataRepository;
 import com.example.testtask.service.UserService;
-import com.example.testtask.service.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,9 +46,6 @@ class UserServiceTest {
     
     @Mock
     private PasswordEncoder passwordEncoder;
-    
-    @Mock
-    private JwtService jwtService;
 
     @InjectMocks
     private UserService userService;

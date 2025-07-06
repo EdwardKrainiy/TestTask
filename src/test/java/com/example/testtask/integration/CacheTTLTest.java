@@ -3,8 +3,6 @@ package com.example.testtask.integration;
 import com.example.testtask.dto.UserCreateRequest;
 import com.example.testtask.dto.UserResponse;
 import com.example.testtask.dto.UserUpdateRequest;
-import com.example.testtask.entity.User;
-import com.example.testtask.repository.UserRepository;
 import com.example.testtask.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,16 +16,12 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 @TestPropertySource(properties = {
-    "app.cache.ttl-seconds=1",
     "spring.cache.type=redis"
 })
 class CacheTTLTest extends BaseIntegrationTest {
 
     @Autowired
     private UserService userService;
-
-    @Autowired
-    private UserRepository userRepository;
 
     @Test 
     void testCacheBasicFunctionality() {

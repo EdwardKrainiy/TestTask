@@ -25,10 +25,4 @@ public interface UserRepository extends JpaRepository<User, Long> {
     
     @Query("SELECT u FROM User u JOIN u.phones p WHERE p.phone = :phone")
     Optional<User> findByPhone(@Param("phone") String phone);
-    
-    @Query("SELECT u FROM User u JOIN u.emails e WHERE e.email LIKE %:email%")
-    Page<User> findByEmailContaining(@Param("email") String email, Pageable pageable);
-    
-    @Query("SELECT u FROM User u JOIN u.phones p WHERE p.phone LIKE %:phone%")
-    Page<User> findByPhoneContaining(@Param("phone") String phone, Pageable pageable);
 } 

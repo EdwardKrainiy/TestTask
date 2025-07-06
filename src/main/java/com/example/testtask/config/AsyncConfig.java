@@ -1,5 +1,7 @@
 package com.example.testtask.config;
 
+import com.example.testtask.exception.GlobalExceptionHandler;
+import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -47,5 +49,10 @@ public class AsyncConfig implements AsyncConfigurer, SchedulingConfigurer {
     @Override
     public Executor getAsyncExecutor() {
         return taskExecutor();
+    }
+
+    @Override
+    public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
+        return new GlobalExceptionHandler();
     }
 } 
