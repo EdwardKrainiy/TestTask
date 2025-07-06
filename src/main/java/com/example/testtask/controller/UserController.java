@@ -33,14 +33,19 @@ public class UserController {
     @PostMapping
     @Operation(summary = "Create a new user", description = "Creates a new user with account, emails and phones")
     public ResponseEntity<UserResponse> createUser(@Valid @RequestBody UserCreateRequest request) {
+        log.info("User creation request received: name={}", request.getName());
+        
         try {
             UserResponse response = userService.createUser(request);
+            log.info("User creation request completed successfully: userID={}", response.getId());
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {
-            log.error("Error creating user: {}", e.getMessage());
+            log.warn("User creation request rejected: name={}, reason={}", 
+                    request.getName(), e.getMessage());
             return ResponseEntity.badRequest().build();
         } catch (Exception e) {
-            log.error("Unexpected error creating user", e);
+            log.error("User creation request failed due to technical error: name={}, error={}", 
+                    request.getName(), e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
@@ -49,12 +54,20 @@ public class UserController {
     @SecurityRequirement(name = "bearerAuth")
     @Operation(summary = "Get user by ID", description = "Retrieves user information by user ID")
     public ResponseEntity<UserResponse> getUserById(@PathVariable Long userId) {
+        log.debug("Get user request received: userID={}", userId);
+        
         try {
             Optional<UserResponse> user = userService.getUserById(userId);
-            return user.map(ResponseEntity::ok)
-                      .orElse(ResponseEntity.notFound().build());
+            if (user.isPresent()) {
+                log.debug("Get user request completed successfully: userID={}", userId);
+                return ResponseEntity.ok(user.get());
+            } else {
+                log.debug("Get user request: user not found - userID={}", userId);
+                return ResponseEntity.notFound().build();
+            }
         } catch (Exception e) {
-            log.error("Error getting user by ID: {}", userId, e);
+            log.error("Get user request failed due to technical error: userID={}, error={}", 
+                    userId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
@@ -66,20 +79,32 @@ public class UserController {
             @PathVariable Long userId,
             @Valid @RequestBody UserUpdateRequest request,
             Authentication authentication) {
+        
+        Long currentUserId = Long.valueOf(authentication.getName());
+        log.info("User update request received: userID={}, requestorID={}", userId, currentUserId);
+        
         try {
-            Long currentUserId = Long.valueOf(authentication.getName());
+            // Authorization check
             if (!currentUserId.equals(userId)) {
+                log.warn("User update request rejected: insufficient permissions - userID={}, requestorID={}", 
+                        userId, currentUserId);
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
             
             Optional<UserResponse> user = userService.updateUser(userId, request);
-            return user.map(ResponseEntity::ok)
-                      .orElse(ResponseEntity.notFound().build());
+            if (user.isPresent()) {
+                log.info("User update request completed successfully: userID={}", userId);
+                return ResponseEntity.ok(user.get());
+            } else {
+                log.warn("User update request: user not found - userID={}", userId);
+                return ResponseEntity.notFound().build();
+            }
         } catch (IllegalArgumentException e) {
-            log.error("Error updating user {}: {}", userId, e.getMessage());
+            log.warn("User update request rejected: userID={}, reason={}", userId, e.getMessage());
             return ResponseEntity.badRequest().build();
         } catch (Exception e) {
-            log.error("Unexpected error updating user: {}", userId, e);
+            log.error("User update request failed due to technical error: userID={}, error={}", 
+                    userId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
@@ -105,12 +130,18 @@ public class UserController {
             
             @Parameter(description = "Page size")
             @RequestParam(defaultValue = "10") int size) {
+        
+        log.info("User search request received: dateOfBirth={}, phone={}, name={}, email={}, page={}, size={}", 
+                dateOfBirth, phone, name, email, page, size);
+        
         try {
             Pageable pageable = PageRequest.of(page, size);
             Page<UserResponse> users = userService.searchUsers(dateOfBirth, phone, name, email, pageable);
+            
+            log.info("User search request completed successfully: found {} users", users.getNumberOfElements());
             return ResponseEntity.ok(users);
         } catch (Exception e) {
-            log.error("Error searching users", e);
+            log.error("User search request failed due to technical error: error={}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

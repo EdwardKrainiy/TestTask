@@ -36,16 +36,21 @@ public class UserService {
     
     @Transactional
     public UserResponse createUser(UserCreateRequest request) {
-        log.debug("Creating user with name: {}", request.getName());
+        log.info("Creating user: name={}, emails={}, phones={}", 
+                request.getName(), 
+                request.getEmails().stream().map(UserCreateRequest.EmailRequest::getEmail).toList(),
+                request.getPhones().stream().map(UserCreateRequest.PhoneRequest::getPhone).toList());
         
         for (UserCreateRequest.EmailRequest emailReq : request.getEmails()) {
             if (emailDataRepository.existsByEmail(emailReq.getEmail())) {
+                log.warn("User creation failed: email already exists - {}", emailReq.getEmail());
                 throw new IllegalArgumentException("Email already exists: " + emailReq.getEmail());
             }
         }
         
         for (UserCreateRequest.PhoneRequest phoneReq : request.getPhones()) {
             if (phoneDataRepository.existsByPhone(phoneReq.getPhone())) {
+                log.warn("User creation failed: phone already exists - {}", phoneReq.getPhone());
                 throw new IllegalArgumentException("Phone already exists: " + phoneReq.getPhone());
             }
         }
@@ -81,16 +86,18 @@ public class UserService {
         }
         phoneDataRepository.saveAll(phones);
         
-        log.info("User created successfully with ID: {}", user.getId());
+        log.info("User created successfully: ID={}, name={}, initialBalance={}", 
+                user.getId(), user.getName(), request.getInitialBalance());
         return mapToUserResponse(user, account, emails, phones);
     }
     
     @Cacheable(value = "users", key = "#userId")
     public Optional<UserResponse> getUserById(Long userId) {
-        log.debug("Getting user by ID: {}", userId);
+        log.debug("Fetching user by ID: {}", userId);
         
         Optional<User> user = userRepository.findById(userId);
         if (user.isEmpty()) {
+            log.debug("User not found: ID={}", userId);
             return Optional.empty();
         }
         
@@ -98,34 +105,42 @@ public class UserService {
         List<EmailData> emails = emailDataRepository.findByUserId(userId);
         List<PhoneData> phones = phoneDataRepository.findByUserId(userId);
         
+        log.debug("User fetched successfully: ID={}", userId);
         return Optional.of(mapToUserResponse(user.get(), account.orElse(null), emails, phones));
     }
     
     @Transactional
     @CacheEvict(value = {"users", "usersByEmail", "usersByPhone"}, key = "#userId")
     public Optional<UserResponse> updateUser(Long userId, UserUpdateRequest request) {
-        log.debug("Updating user with ID: {}", userId);
+        log.info("Updating user: ID={}, hasNameUpdate={}, hasEmailUpdate={}, hasPhoneUpdate={}", 
+                userId, request.getName() != null, request.getEmails() != null, request.getPhones() != null);
         
         Optional<User> userOpt = userRepository.findById(userId);
         if (userOpt.isEmpty()) {
+            log.warn("User update failed: user not found - ID={}", userId);
             return Optional.empty();
         }
         
         User user = userOpt.get();
         
         if (request.getName() != null && !request.getName().trim().isEmpty()) {
+            String oldName = user.getName();
             user.setName(request.getName());
+            log.debug("User name updated: ID={}, oldName={}, newName={}", userId, oldName, request.getName());
         }
         
         if (request.getEmails() != null && !request.getEmails().isEmpty()) {
             for (UserUpdateRequest.EmailUpdateRequest emailReq : request.getEmails()) {
                 if (emailReq.getEmail() != null && 
                     !emailDataRepository.findByEmail(emailReq.getEmail()).map(e -> e.getUserId().equals(userId)).orElse(true)) {
+                    log.warn("User update failed: email already exists - {}", emailReq.getEmail());
                     throw new IllegalArgumentException("Email already exists: " + emailReq.getEmail());
                 }
             }
             
+            List<EmailData> oldEmails = emailDataRepository.findByUserId(userId);
             emailDataRepository.deleteByUserId(userId);
+            
             List<EmailData> newEmails = new ArrayList<>();
             for (UserUpdateRequest.EmailUpdateRequest emailReq : request.getEmails()) {
                 if (emailReq.getEmail() != null && !emailReq.getEmail().trim().isEmpty()) {
@@ -136,17 +151,25 @@ public class UserService {
                 }
             }
             emailDataRepository.saveAll(newEmails);
+            
+            log.info("User emails updated: ID={}, oldEmails={}, newEmails={}", 
+                    userId, 
+                    oldEmails.stream().map(EmailData::getEmail).toList(),
+                    newEmails.stream().map(EmailData::getEmail).toList());
         }
         
         if (request.getPhones() != null && !request.getPhones().isEmpty()) {
             for (UserUpdateRequest.PhoneUpdateRequest phoneReq : request.getPhones()) {
                 if (phoneReq.getPhone() != null && 
                     !phoneDataRepository.findByPhone(phoneReq.getPhone()).map(p -> p.getUserId().equals(userId)).orElse(true)) {
+                    log.warn("User update failed: phone already exists - {}", phoneReq.getPhone());
                     throw new IllegalArgumentException("Phone already exists: " + phoneReq.getPhone());
                 }
             }
             
+            List<PhoneData> oldPhones = phoneDataRepository.findByUserId(userId);
             phoneDataRepository.deleteByUserId(userId);
+            
             List<PhoneData> newPhones = new ArrayList<>();
             for (UserUpdateRequest.PhoneUpdateRequest phoneReq : request.getPhones()) {
                 if (phoneReq.getPhone() != null && !phoneReq.getPhone().trim().isEmpty()) {
@@ -157,6 +180,11 @@ public class UserService {
                 }
             }
             phoneDataRepository.saveAll(newPhones);
+            
+            log.info("User phones updated: ID={}, oldPhones={}, newPhones={}", 
+                    userId, 
+                    oldPhones.stream().map(PhoneData::getPhone).toList(),
+                    newPhones.stream().map(PhoneData::getPhone).toList());
         }
         
         user = userRepository.save(user);
@@ -165,13 +193,13 @@ public class UserService {
         List<EmailData> emails = emailDataRepository.findByUserId(userId);
         List<PhoneData> phones = phoneDataRepository.findByUserId(userId);
         
-        log.info("User updated successfully with ID: {}", userId);
+        log.info("User updated successfully: ID={}", userId);
         return Optional.of(mapToUserResponse(user, account.orElse(null), emails, phones));
     }
     
     public Page<UserResponse> searchUsers(LocalDate dateOfBirth, String phone, String name, String email, Pageable pageable) {
-        log.debug("Searching users with filters - dateOfBirth: {}, phone: {}, name: {}, email: {}", 
-                 dateOfBirth, phone, name, email);
+        log.info("Searching users: dateOfBirth={}, phone={}, name={}, email={}, page={}, size={}", 
+                 dateOfBirth, phone, name, email, pageable.getPageNumber(), pageable.getPageSize());
         
         Page<User> users;
         
@@ -200,23 +228,31 @@ public class UserService {
                 })
                 .collect(Collectors.toList());
         
+        log.info("User search completed: found {} users out of {} total", 
+                userResponses.size(), users.getTotalElements());
         return new PageImpl<>(userResponses, pageable, users.getTotalElements());
     }
     
     public AuthResponse authenticate(AuthRequest request) {
-        log.debug("Authenticating user with login: {}", request.getLogin());
+        log.info("Authenticating user: login={}", request.getLogin());
         
         Optional<User> userOpt = userLookupService.findByEmail(request.getLogin());
         if (userOpt.isEmpty()) {
             userOpt = userLookupService.findByPhone(request.getLogin());
         }
         
-        if (userOpt.isEmpty() || !passwordEncoder.matches(request.getPassword(), userOpt.get().getPassword())) {
+        if (userOpt.isEmpty()) {
+            log.warn("Authentication failed: user not found - login={}", request.getLogin());
+            throw new IllegalArgumentException("Invalid credentials");
+        }
+        
+        if (!passwordEncoder.matches(request.getPassword(), userOpt.get().getPassword())) {
+            log.warn("Authentication failed: invalid password - login={}", request.getLogin());
             throw new IllegalArgumentException("Invalid credentials");
         }
         
         String token = jwtService.generateToken(userOpt.get().getId());
-        log.info("User authenticated successfully: {}", userOpt.get().getId());
+        log.info("User authenticated successfully: userID={}, login={}", userOpt.get().getId(), request.getLogin());
         
         return new AuthResponse(token);
     }

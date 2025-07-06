@@ -17,14 +17,26 @@ public class BalanceOperationsScheduler {
     private final AccountRepository accountRepository;
     private final AccountService accountService;
 
-    @Scheduled(fixedRate = 5000)
+    @Scheduled(fixedRate = 30000)
     public void increaseBalances() {
-        log.debug("Starting scheduled balance increase");
-
-        List<Account> accounts = accountRepository.findAll();
-        for (Account account : accounts) {
-            accountService.increaseBalance(account);
+        log.info("Starting scheduled balance increase for all accounts");
+        
+        try {
+            List<Account> accounts = accountRepository.findAll();
+            log.debug("Found {} accounts for balance increase", accounts.size());
+            
+            for (Account account : accounts) {
+                try {
+                    accountService.increaseBalance(account);
+                } catch (Exception e) {
+                    log.error("Failed to increase balance for user {}: {}", 
+                            account.getUserId(), e.getMessage());
+                }
+            }
+            
+            log.info("Completed scheduled balance increase for {} accounts", accounts.size());
+        } catch (Exception e) {
+            log.error("Error during scheduled balance increase: {}", e.getMessage(), e);
         }
-        log.debug("Finished scheduled balance increase");
     }
 }

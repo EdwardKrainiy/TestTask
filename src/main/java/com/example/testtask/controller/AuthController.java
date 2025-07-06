@@ -24,14 +24,19 @@ public class AuthController {
     @PostMapping("/login")
     @Operation(summary = "User login", description = "Authenticate user with email/phone and password")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request) {
+        log.info("Authentication request received: login={}", request.getLogin());
+        
         try {
             AuthResponse response = userService.authenticate(request);
+            log.info("Authentication request completed successfully: login={}", request.getLogin());
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
-            log.error("Authentication failed for login: {}", request.getLogin());
+            log.warn("Authentication request rejected: login={}, reason={}", 
+                    request.getLogin(), e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         } catch (Exception e) {
-            log.error("Unexpected error during authentication", e);
+            log.error("Authentication request failed due to technical error: login={}, error={}", 
+                    request.getLogin(), e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

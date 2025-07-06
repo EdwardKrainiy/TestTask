@@ -28,15 +28,23 @@ public class AccountController {
     public ResponseEntity<Void> transferMoney(
             @Valid @RequestBody TransferRequest request,
             Authentication authentication) {
+        
+        Long fromUserId = Long.valueOf(authentication.getName());
+        log.info("Transfer request received: from={}, to={}, amount={}", 
+                fromUserId, request.getTransferTo(), request.getAmount());
+        
         try {
-            Long fromUserId = Long.valueOf(authentication.getName());
             accountService.transferMoney(fromUserId, request);
+            log.info("Transfer request completed successfully: from={}, to={}, amount={}", 
+                    fromUserId, request.getTransferTo(), request.getAmount());
             return ResponseEntity.ok().build();
         } catch (IllegalArgumentException e) {
-            log.error("Error transferring money: {}", e.getMessage());
+            log.warn("Transfer request rejected: from={}, to={}, amount={}, reason={}", 
+                    fromUserId, request.getTransferTo(), request.getAmount(), e.getMessage());
             return ResponseEntity.badRequest().build();
         } catch (Exception e) {
-            log.error("Unexpected error during money transfer", e);
+            log.error("Transfer request failed due to technical error: from={}, to={}, amount={}, error={}", 
+                    fromUserId, request.getTransferTo(), request.getAmount(), e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
