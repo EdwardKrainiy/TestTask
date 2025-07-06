@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.25.xsd">
+
+    <changeSet id="005" author="ai">
+        <!-- User 1, password - password1 -->
+        <insert tableName="users">
+            <column name="id" valueNumeric="101"/>
+            <column name="name" value="Alice Johnson"/>
+            <column name="date_of_birth" valueDate="1990-04-15"/>
+            <column name="password" value="$2a$10$RM.emQAAe8rwF8QnzrX.h.gWDMNvJveYd6FGign.5hV19TVO8nZDi"/>
+        </insert>
+        <insert tableName="account">
+            <column name="id" valueNumeric="201"/>
+            <column name="user_id" valueNumeric="101"/>
+            <column name="balance" valueNumeric="1000.00"/>
+            <column name="initial_balance" valueNumeric="1000.00"/>
+        </insert>
+        <insert tableName="email_data">
+            <column name="id" valueNumeric="301"/>
+            <column name="user_id" valueNumeric="101"/>
+            <column name="email" value="alice.johnson@example.com"/>
+        </insert>
+        <insert tableName="phone_data">
+            <column name="id" valueNumeric="401"/>
+            <column name="user_id" valueNumeric="101"/>
+            <column name="phone" value="79201234567"/>
+        </insert>
+
+        <!-- User 2, password - password2 -->
+        <insert tableName="users">
+            <column name="id" valueNumeric="102"/>
+            <column name="name" value="Bob Smith"/>
+            <column name="date_of_birth" valueDate="1985-09-23"/>
+            <column name="password" value="$2a$10$3BpkZArFisLvlkb.2MRm7OkrxfBpUlfhPTzlD/pPkxpNp1SqLK2Om"/>
+        </insert>
+        <insert tableName="account">
+            <column name="id" valueNumeric="202"/>
+            <column name="user_id" valueNumeric="102"/>
+            <column name="balance" valueNumeric="500.00"/>
+            <column name="initial_balance" valueNumeric="500.00"/>
+        </insert>
+        <insert tableName="email_data">
+            <column name="id" valueNumeric="302"/>
+            <column name="user_id" valueNumeric="102"/>
+            <column name="email" value="bob.smith@example.com"/>
+        </insert>
+        <insert tableName="phone_data">
+            <column name="id" valueNumeric="402"/>
+            <column name="user_id" valueNumeric="102"/>
+            <column name="phone" value="79207654321"/>
+        </insert>
+
+        <!-- User 3, password - password3 -->
+        <insert tableName="users">
+            <column name="id" valueNumeric="103"/>
+            <column name="name" value="Charlie Lee"/>
+            <column name="date_of_birth" valueDate="1995-12-05"/>
+            <column name="password" value="$2a$10$1M2UKXkeW9Sda2U5i7nzYeO0ViFVF/KiSw4y4.JNHNYxUszoltjAq"/>
+        </insert>
+        <insert tableName="account">
+            <column name="id" valueNumeric="203"/>
+            <column name="user_id" valueNumeric="103"/>
+            <column name="balance" valueNumeric="750.00"/>
+            <column name="initial_balance" valueNumeric="750.00"/>
+        </insert>
+        <insert tableName="email_data">
+            <column name="id" valueNumeric="303"/>
+            <column name="user_id" valueNumeric="103"/>
+            <column name="email" value="charlie.lee@example.com"/>
+        </insert>
+        <insert tableName="phone_data">
+            <column name="id" valueNumeric="403"/>
+            <column name="user_id" valueNumeric="103"/>
+            <column name="phone" value="79209876543"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog> 
