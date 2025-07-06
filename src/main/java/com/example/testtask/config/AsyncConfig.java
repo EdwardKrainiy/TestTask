@@ -19,22 +19,22 @@ public class AsyncConfig implements AsyncConfigurer, SchedulingConfigurer {
     @Value("${app.async.corePoolSize:5}")
     private int corePoolSize;
 
-    @Bean(name = "taskExecutor")
+    @Bean(name = "operationExecutor")
     public Executor taskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(corePoolSize);
         executor.setMaxPoolSize(corePoolSize * 2);
         executor.setQueueCapacity(500);
-        executor.setThreadNamePrefix("AppExecutor-");
+        executor.setThreadNamePrefix("OperationExecutor-");
         executor.initialize();
         return executor;
     }
 
-    @Bean
+    @Bean("schedulerExecutor")
     public ThreadPoolTaskScheduler taskScheduler() {
         ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
         scheduler.setPoolSize(corePoolSize);
-        scheduler.setThreadNamePrefix("AppScheduler-");
+        scheduler.setThreadNamePrefix("Scheduler-");
         scheduler.initialize();
         return scheduler;
     }
